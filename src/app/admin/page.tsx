@@ -6,12 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import toast, { Toaster } from 'react-hot-toast'
 
 export default function AdminPage() {
-  const [stats, setStats] = useState({
-    instructors: 0,
-    requests: 0,
-    notices: 0,
-    faqs: 0,
-  })
+  const [stats, setStats] = useState({ instructors: 0, requests: 0, notices: 0, faqs: 0 })
   const [instructors, setInstructors] = useState<any[]>([])
   const [requests, setRequests] = useState<any[]>([])
   const [notices, setNotices] = useState<any[]>([])
@@ -20,16 +15,14 @@ export default function AdminPage() {
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '', is_published: true })
   const supabase = createClient()
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
     const [instRes, reqRes, noticeRes, faqRes] = await Promise.all([
       supabase.from('instructors').select('*').order('created_at', { ascending: false }),
       supabase.from('requests').select('*').order('created_at', { ascending: false }),
       supabase.from('notices').select('*').order('created_at', { ascending: false }),
-      supabase.from('faq').select('*', { count: 'exact' }),
+      supabase.from('faq').select('*'),
     ])
     setInstructors(instRes.data || [])
     setRequests(reqRes.data || [])
@@ -44,55 +37,40 @@ export default function AdminPage() {
   }
 
   const handleNoticeSubmit = async () => {
-    if (!noticeForm.title || !noticeForm.content) {
-      toast.error('제목과 내용을 입력해주세요')
-      return
-    }
+    if (!noticeForm.title || !noticeForm.content) { toast.error('제목과 내용을 입력해주세요'); return }
     const { error } = await supabase.from('notices').insert([noticeForm])
-    if (error) {
-      toast.error('등록 실패: ' + error.message)
-    } else {
-      toast.success('공지사항이 등록됐어요!')
-      setNoticeForm({ title: '', content: '', is_published: true })
-      loadData()
-    }
+    if (error) { toast.error('등록 실패: ' + error.message) }
+    else { toast.success('공지사항이 등록됐어요!'); setNoticeForm({ title: '', content: '', is_published: true }); loadData() }
   }
 
   const handleDeleteNotice = async (id: string) => {
     const { error } = await supabase.from('notices').delete().eq('id', id)
-    if (error) {
-      toast.error('삭제 실패')
-    } else {
-      toast.success('삭제됐어요')
-      loadData()
-    }
+    if (error) { toast.error('삭제 실패') }
+    else { toast.success('삭제됐어요'); loadData() }
   }
 
   const handleToggleInstructor = async (id: string, current: boolean) => {
-    const { error } = await supabase
-      .from('instructors')
-      .update({ is_active: !current })
-      .eq('id', id)
-    if (error) {
-      toast.error('변경 실패')
-    } else {
-      toast.success(current ? '비활성화했어요' : '활성화했어요')
-      loadData()
-    }
+    const { error } = await supabase.from('instructors').update({ is_active: !current }).eq('id', id)
+    if (error) { toast.error('변경 실패') }
+    else { toast.success(current ? '비활성화했어요' : '활성화했어요'); loadData() }
   }
 
   const handleTogglePremium = async (id: string, current: boolean) => {
-    const { error } = await supabase
-      .from('instructors')
-      .update({ is_premium: !current })
-      .eq('id', id)
-    if (error) {
-      toast.error('변경 실패')
-    } else {
-      toast.success(current ? '프리미엄 해제했어요' : '프리미엄 설정했어요')
-      loadData()
-    }
+    const { error } = await supabase.from('instructors').update({ is_premium: !current }).eq('id', id)
+    if (error) { toast.error('변경 실패') }
+    else { toast.success(current ? '프리미엄 해제했어요' : '프리미엄 설정했어요'); loadData() }
   }
+
+  const getTabStyle = (tab: string): React.CSSProperties => ({
+    padding: '10px 16px',
+    fontSize: '13px',
+    cursor: 'pointer',
+    color: activeTab === tab ? '#2563EB' : '#475569',
+    fontWeight: activeTab === tab ? '500' : '400',
+    background: 'none',
+    border: 'none',
+    borderBottom: activeTab === tab ? '2px solid #2563EB' : '2px solid transparent',
+  })
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -103,7 +81,6 @@ export default function AdminPage() {
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
       <Toaster position="bottom-right" />
-
       <header style={{
         background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)',
         padding: '0 20px', height: '56px', display: 'flex',
@@ -120,18 +97,10 @@ export default function AdminPage() {
         <div style={{ fontSize: '20px', fontWeight: '700', marginBottom: '24px' }}>관리자 대시보드</div>
 
         <div style={{ display: 'flex', borderBottom: '0.5px solid rgba(0,0,0,0.1)', marginBottom: '24px' }}>
-          {['dashboard', 'instructors', 'requests', 'notices'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{
-              padding: '10px 16px', fontSize: '13px', cursor: 'pointer',
-              borderBottom: activeTab === tab ? '2px solid #2563EB' : '2px solid transparent',
-              color: activeTab === tab ? '#2563EB' : '#475569',
-              fontWeight: activeTab === tab ? '500' : '400',
-              background: 'none', border: 'none',
-              borderBottom: activeTab === tab ? '2px solid #2563EB' : '2px solid transparent',
-            } as React.CSSProperties}>
-              {tab === 'dashboard' ? '대시보드' : tab === 'instructors' ? '강사 관리' : tab === 'requests' ? '의뢰 관리' : '공지 관리'}
-            </button>
-          ))}
+          <button style={getTabStyle('dashboard')} onClick={() => setActiveTab('dashboard')}>대시보드</button>
+          <button style={getTabStyle('instructors')} onClick={() => setActiveTab('instructors')}>강사 관리</button>
+          <button style={getTabStyle('requests')} onClick={() => setActiveTab('requests')}>의뢰 관리</button>
+          <button style={getTabStyle('notices')} onClick={() => setActiveTab('notices')}>공지 관리</button>
         </div>
 
         {activeTab === 'dashboard' && (
@@ -142,10 +111,7 @@ export default function AdminPage() {
               { label: '공지사항', value: stats.notices, icon: '📢' },
               { label: 'FAQ', value: stats.faqs, icon: '❓' },
             ].map(stat => (
-              <div key={stat.label} style={{
-                background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)',
-                borderRadius: '16px', padding: '20px'
-              }}>
+              <div key={stat.label} style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: '16px', padding: '20px' }}>
                 <div style={{ fontSize: '24px', marginBottom: '8px' }}>{stat.icon}</div>
                 <div style={{ fontSize: '28px', fontWeight: '700', color: '#2563EB' }}>{stat.value}</div>
                 <div style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>{stat.label}</div>
