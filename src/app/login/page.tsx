@@ -12,15 +12,31 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [magicMode, setMagicMode] = useState(false)
 
-  // 이메일+비밀번호 로그인
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', data.user.id)
+        .single()
+
       toast.success('로그인 성공!')
-      setTimeout(() => window.location.href = '/', 800)
+      setTimeout(() => {
+        if (!profile?.user_type) {
+          window.location.href = '/onboarding'
+        } else if (profile.user_type === 'instructor') {
+          window.location.href = '/dashboard/instructor'
+        } else if (profile.user_type === 'company') {
+          window.location.href = '/dashboard/company'
+        } else {
+          window.location.href = '/'
+        }
+      }, 800)
     } catch (err: any) {
       toast.error('로그인 실패: ' + err.message)
     } finally {
@@ -28,7 +44,6 @@ export default function LoginPage() {
     }
   }
 
-  // 회원가입
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -49,7 +64,6 @@ export default function LoginPage() {
     }
   }
 
-  // 매직링크 로그인
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) { toast.error('이메일을 입력해주세요'); return }
@@ -74,14 +88,12 @@ export default function LoginPage() {
     <main style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
       <Toaster position="bottom-right" />
       <div style={{ maxWidth: '400px', width: '100%', background: '#fff', padding: '36px 32px', borderRadius: '16px', border: '0.5px solid rgba(0,0,0,0.1)' }}>
-        
-        {/* 로고 */}
+
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div style={{ fontSize: '22px', fontWeight: '700', color: '#2563EB', marginBottom: '4px' }}>강사아레나</div>
           <div style={{ fontSize: '13px', color: '#475569' }}>강사와 기업을 연결하는 전문 플랫폼</div>
         </div>
 
-        {/* 탭: 로그인 / 회원가입 */}
         <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '10px', padding: '4px', marginBottom: '24px' }}>
           <button onClick={() => { setMode('login'); setMagicMode(false) }} style={{
             flex: 1, padding: '8px', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
@@ -97,7 +109,6 @@ export default function LoginPage() {
           }}>회원가입</button>
         </div>
 
-        {/* 매직링크 모드 */}
         {magicMode ? (
           <form onSubmit={handleMagicLink} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
