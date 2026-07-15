@@ -1,117 +1,156 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import toast, { Toaster } from 'react-hot-toast'
 
 export default function LoginPage() {
-  const router = useRouter()
   const supabase = createClient()
-
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [magicMode, setMagicMode] = useState(false)
 
-  // 실제 Supabase 로그인 시도
+  // 이메일+비밀번호 로그인
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
-
-      alert('로그인 성공!')
-      router.push('/')
-      router.refresh()
+      toast.success('로그인 성공!')
+      setTimeout(() => window.location.href = '/', 800)
     } catch (err: any) {
-      alert(`로그인 실패: ${err.message}`)
+      toast.error('로그인 실패: ' + err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  // 🚀 Supabase 서버 장애 우회용 테스트 로그인
-  const handleTestLogin = () => {
-    // 임시 테스트 세션 저장
-    localStorage.setItem('test_user_logged_in', 'true')
-    alert('테스트 계정으로 로그인되었습니다!')
-    window.location.href = '/'
+  // 회원가입
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      if (error) throw error
+      toast.success('가입 확인 이메일을 발송했어요! 이메일을 확인해주세요 📧')
+    } catch (err: any) {
+      toast.error('회원가입 실패: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 매직링크 로그인
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email) { toast.error('이메일을 입력해주세요'); return }
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      if (error) throw error
+      toast.success('로그인 링크를 이메일로 발송했어요 📧')
+    } catch (err: any) {
+      toast.error('발송 실패: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <main style={{ background: '#F8FAFC', minHeight: '100vh', padding: '60px 20px' }}>
-      <div style={{ maxWidth: '400px', margin: '0 auto', background: '#fff', padding: '32px', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px', textAlign: 'center' }}>강사아레나 로그인</h1>
-        <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '24px', textAlign: 'center' }}>서비스 이용을 위해 로그인해 주세요.</p>
+    <main style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
+      <Toaster position="bottom-right" />
+      <div style={{ maxWidth: '400px', width: '100%', background: '#fff', padding: '36px 32px', borderRadius: '16px', border: '0.5px solid rgba(0,0,0,0.1)' }}>
+        
+        {/* 로고 */}
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{ fontSize: '22px', fontWeight: '700', color: '#2563EB', marginBottom: '4px' }}>강사아레나</div>
+          <div style={{ fontSize: '13px', color: '#475569' }}>강사와 기업을 연결하는 전문 플랫폼</div>
+        </div>
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>이메일</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="example@email.com"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-            />
-          </div>
+        {/* 탭: 로그인 / 회원가입 */}
+        <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '10px', padding: '4px', marginBottom: '24px' }}>
+          <button onClick={() => { setMode('login'); setMagicMode(false) }} style={{
+            flex: 1, padding: '8px', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+            background: mode === 'login' ? '#fff' : 'transparent',
+            color: mode === 'login' ? '#2563EB' : '#475569',
+            boxShadow: mode === 'login' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none'
+          }}>로그인</button>
+          <button onClick={() => { setMode('signup'); setMagicMode(false) }} style={{
+            flex: 1, padding: '8px', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+            background: mode === 'signup' ? '#fff' : 'transparent',
+            color: mode === 'signup' ? '#2563EB' : '#475569',
+            boxShadow: mode === 'signup' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none'
+          }}>회원가입</button>
+        </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>비밀번호</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호 입력"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-            />
-          </div>
+        {/* 매직링크 모드 */}
+        {magicMode ? (
+          <form onSubmit={handleMagicLink} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>이메일</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="example@email.com"
+                style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }} />
+            </div>
+            <button type="submit" disabled={loading} style={{
+              padding: '12px', background: '#2563EB', color: '#fff', border: 'none',
+              borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer'
+            }}>
+              {loading ? '발송 중...' : '✉️ 매직링크 발송'}
+            </button>
+            <button type="button" onClick={() => setMagicMode(false)} style={{
+              padding: '10px', background: 'none', border: 'none', fontSize: '13px', color: '#475569', cursor: 'pointer'
+            }}>← 비밀번호로 로그인</button>
+          </form>
+        ) : (
+          <form onSubmit={mode === 'login' ? handleLogin : handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>이메일</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="example@email.com"
+                style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>비밀번호</label>
+              <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
+                placeholder={mode === 'signup' ? '8자 이상 입력' : '비밀번호 입력'}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }} />
+            </div>
+            <button type="submit" disabled={loading} style={{
+              padding: '12px', background: '#2563EB', color: '#fff', border: 'none',
+              borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer'
+            }}>
+              {loading ? (mode === 'login' ? '로그인 중...' : '가입 중...') : (mode === 'login' ? '로그인' : '회원가입')}
+            </button>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: '12px',
-              background: '#2563EB',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              marginTop: '8px'
-            }}
-          >
-            {loading ? '로그인 중...' : '로그인'}
-          </button>
-        </form>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
+              <div style={{ flex: 1, height: '0.5px', background: 'rgba(0,0,0,0.1)' }}></div>
+              <span style={{ fontSize: '12px', color: '#94A3B8' }}>또는</span>
+              <div style={{ flex: 1, height: '0.5px', background: 'rgba(0,0,0,0.1)' }}></div>
+            </div>
 
-        <hr style={{ border: 'none', borderTop: '1px solid #E2E8F0', margin: '20px 0' }} />
-
-        {/* 서버 장애 대응 원클릭 테스트 로그인 */}
-        <button
-          onClick={handleTestLogin}
-          style={{
-            width: '100%',
-            padding: '12px',
-            background: '#10B981',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-        >
-          ⚡ 테스트 계정으로 바로 로그인하기
-        </button>
+            <button type="button" onClick={() => setMagicMode(true)} style={{
+              padding: '11px', background: '#F8FAFC', border: '0.5px solid rgba(0,0,0,0.18)',
+              borderRadius: '10px', fontSize: '13px', color: '#475569', cursor: 'pointer', fontWeight: '500'
+            }}>
+              ✉️ 이메일 매직링크로 로그인
+            </button>
+          </form>
+        )}
       </div>
     </main>
   )
