@@ -150,7 +150,7 @@ export default function InstructorDashboardPage() {
         </div>
 
         {/* 메인 콘텐츠 */}
-        <div style={{ flex: 1, padding: '32px' }}>
+        <div style={{ flex: 1, padding: '32px', maxWidth: '900px' }}>
 
           {/* 프로필 탭 */}
           {activeTab === 'profile' && (
