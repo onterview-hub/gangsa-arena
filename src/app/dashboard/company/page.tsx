@@ -48,12 +48,6 @@ export default function CompanyDashboardPage() {
     }
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    toast.success('로그아웃했어요')
-    setTimeout(() => router.push('/'), 800)
-  }
-
   const handleCharge = (amount: number) => {
     if (balance + amount > 100000) {
       toast.error('보유 마일리지와 합산 100,000P를 초과할 수 없어요')
@@ -71,26 +65,6 @@ export default function CompanyDashboardPage() {
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
       <Toaster position="bottom-right" />
-
-      {/* 헤더 */}
-      <header style={{
-        background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)',
-        padding: '0 20px', height: '56px', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between',
-        position: 'sticky', top: 0, zIndex: 100
-      }}>
-        <Link href="/" style={{ fontSize: '18px', fontWeight: '700', color: '#2563EB', textDecoration: 'none' }}>
-          강사아레나
-        </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '13px', color: '#475569' }}>{userName}</span>
-          <button onClick={handleLogout} style={{
-            padding: '6px 14px', background: '#fff',
-            border: '0.5px solid rgba(0,0,0,0.18)',
-            borderRadius: '8px', fontSize: '13px', cursor: 'pointer'
-          }}>로그아웃</button>
-        </div>
-      </header>
 
       {/* 대시보드 레이아웃 */}
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 56px)' }}>
