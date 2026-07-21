@@ -118,7 +118,7 @@ export default function InstructorDashboardPage() {
         }
       `}</style>
 
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', minHeight: '100vh', maxWidth: '1200px', margin: '0 auto' }}>
         {/* 사이드바 */}
         <div style={{
           width: '210px', background: '#fff',
