@@ -152,19 +152,18 @@ export default function InstructorDetailPage() {
             </div>
           )}
 
-          {(instructor.email || instructor.phone) && (
+                    {instructor.profile_file_url && (
             <div className="info-card" style={{ background: '#fff', padding: '24px', borderRadius: '16px', border: '0.5px solid rgba(0,0,0,0.08)' }}>
               <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#0F172A', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                📮 문의 연락처
+                📎 첨부파일
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {instructor.email && (
-                  <p style={{ fontSize: '14px', color: '#334155', margin: 0 }}>✉️ {instructor.email}</p>
-                )}
-                {instructor.phone && (
-                  <p style={{ fontSize: '14px', color: '#334155', margin: 0 }}>📞 {instructor.phone}</p>
-                )}
-              </div>
+              <a href={instructor.profile_file_url} target="_blank" rel="noopener noreferrer" style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '10px 16px', background: '#EFF6FF', color: '#2563EB',
+                borderRadius: '10px', textDecoration: 'none', fontSize: '13.5px', fontWeight: '700'
+              }}>
+                📄 {instructor.profile_file_name || '첨부파일 다운로드'}
+              </a>
             </div>
           )}
 
