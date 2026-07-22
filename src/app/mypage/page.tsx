@@ -17,6 +17,7 @@ export default function MyPage() {
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
+  const [instructorRow, setInstructorRow] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [name, setName] = useState('')
@@ -44,9 +45,10 @@ export default function MyPage() {
       .maybeSingle()
 
     setProfile(profileData)
-    setName(profileData?.name || '')
 
     if (profileData?.user_type === 'company') {
+      setName(profileData?.name || '')
+
       const { data: account } = await supabase
         .from('mileage_accounts')
         .select('balance')
@@ -56,17 +58,21 @@ export default function MyPage() {
     }
 
     if (profileData?.user_type === 'instructor') {
-      const { data: instructorRow } = await supabase
+      const { data: instructorData } = await supabase
         .from('instructors')
-        .select('id')
+        .select('*')
         .eq('email', session.user.email)
         .maybeSingle()
 
-      if (instructorRow) {
+      setInstructorRow(instructorData)
+      // 강사는 instructors 테이블의 이름을 기준으로 보여줌 (강사 목록/상세페이지와 동일한 이름)
+      setName(instructorData?.name || profileData?.name || '')
+
+      if (instructorData) {
         const { data: reqs } = await supabase
           .from('requests')
           .select('*')
-          .eq('instructor_id', instructorRow.id)
+          .eq('instructor_id', instructorData.id)
           .order('created_at', { ascending: false })
         setReceivedRequests(reqs || [])
       }
@@ -77,16 +83,39 @@ export default function MyPage() {
 
   const handleSaveName = async () => {
     if (!user) return
+    if (!name.trim()) {
+      toast.error('이름을 입력해주세요')
+      return
+    }
     setSaving(true)
-    const { error } = await supabase
+
+    // profiles 테이블은 항상 갱신
+    const { error: profileError } = await supabase
       .from('profiles')
       .upsert({ id: user.id, email: user.email, name, user_type: profile?.user_type })
-    if (error) {
-      toast.error('저장 실패: ' + error.message)
-    } else {
-      toast.success('저장됐어요!')
-      fetchAll()
+
+    if (profileError) {
+      toast.error('저장 실패: ' + profileError.message)
+      setSaving(false)
+      return
     }
+
+    // 강사 계정이면 instructors 테이블 이름도 같이 갱신 (강사 프로필과 연동)
+    if (profile?.user_type === 'instructor' && instructorRow) {
+      const { error: instructorError } = await supabase
+        .from('instructors')
+        .update({ name })
+        .eq('id', instructorRow.id)
+
+      if (instructorError) {
+        toast.error('강사 프로필 반영 실패: ' + instructorError.message)
+        setSaving(false)
+        return
+      }
+    }
+
+    toast.success('저장됐어요! 강사 프로필에도 반영됩니다.')
+    fetchAll()
     setSaving(false)
   }
 
@@ -152,7 +181,11 @@ export default function MyPage() {
 
           {userType === 'instructor' && (
             <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '12px' }}>
-              전문분야·강사료·사진 등 상세 프로필은 <Link href="/dashboard/instructor" className="link-btn" style={{ color: '#2563EB', fontWeight: 700, textDecoration: 'none' }}>강사 대시보드</Link>에서 수정하세요.
+              {instructorRow
+                ? '이 이름은 강사 목록/상세페이지에도 함께 반영돼요. 전문분야·강사료·사진·경력 등은 '
+                : '아직 강사 프로필이 등록되지 않았어요. '}
+              <Link href="/dashboard/instructor" className="link-btn" style={{ color: '#2563EB', fontWeight: 700, textDecoration: 'none' }}>강사 대시보드</Link>
+              {instructorRow ? '에서 수정하세요.' : '에서 먼저 프로필을 등록해주세요.'}
             </p>
           )}
         </div>
