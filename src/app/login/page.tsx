@@ -84,6 +84,24 @@ export default function LoginPage() {
     }
   }
 
+  const handleKakaoLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'kakao',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      if (error) throw error
+    } catch (err: any) {
+      toast.error('카카오 로그인 실패: ' + err.message)
+    }
+  }
+
+  const handleNaverLogin = () => {
+    window.location.href = '/api/auth/naver/login'
+  }
+
   return (
     <main style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
       <Toaster position="bottom-right" />
@@ -92,6 +110,30 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div style={{ fontSize: '22px', fontWeight: '700', color: '#2563EB', marginBottom: '4px' }}>강사아레나</div>
           <div style={{ fontSize: '13px', color: '#475569' }}>강사와 기업을 연결하는 전문 플랫폼</div>
+        </div>
+
+        {/* 소셜 로그인 버튼 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+          <button onClick={handleKakaoLogin} style={{
+            padding: '12px', background: '#FEE500', border: 'none',
+            borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer',
+            color: '#191919', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+          }}>
+            💬 카카오로 시작하기
+          </button>
+          <button onClick={handleNaverLogin} style={{
+            padding: '12px', background: '#03C75A', border: 'none',
+            borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer',
+            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+          }}>
+            N 네이버로 시작하기
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0 20px' }}>
+          <div style={{ flex: 1, height: '0.5px', background: 'rgba(0,0,0,0.1)' }}></div>
+          <span style={{ fontSize: '12px', color: '#94A3B8' }}>또는 이메일로</span>
+          <div style={{ flex: 1, height: '0.5px', background: 'rgba(0,0,0,0.1)' }}></div>
         </div>
 
         <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '10px', padding: '4px', marginBottom: '24px' }}>
