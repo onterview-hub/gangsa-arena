@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 export default function NoticesPage() {
@@ -25,59 +24,59 @@ export default function NoticesPage() {
   }
 
   return (
-    <main style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* 헤더 */}
-      <header style={{
-        background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)',
-        padding: '0 20px', height: '56px', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between',
-        position: 'sticky', top: 0, zIndex: 100
-      }}>
-        <Link href="/" style={{ fontSize: '18px', fontWeight: '700', color: '#2563EB', textDecoration: 'none' }}>
-          강사아레나
-        </Link>
-        <nav style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <Link href="/instructors" style={{ padding: '6px 10px', color: '#475569', fontSize: '13px', textDecoration: 'none' }}>강사검색</Link>
-          <Link href="/notices" style={{ padding: '6px 10px', color: '#2563EB', fontSize: '13px', textDecoration: 'none', fontWeight: '500' }}>공지사항</Link>
-          <Link href="/faq" style={{ padding: '6px 10px', color: '#475569', fontSize: '13px', textDecoration: 'none' }}>FAQ</Link>
-          <Link href="/login" style={{
-            marginLeft: '8px', padding: '6px 14px',
-            background: '#2563EB', color: '#fff',
-            borderRadius: '12px', fontSize: '13px',
-            textDecoration: 'none', fontWeight: '500'
-          }}>로그인</Link>
-        </nav>
-      </header>
+    <main style={{ background: '#F7F8FA', minHeight: '100vh', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <style jsx global>{`
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '36px 20px' }}>
-        <div style={{ fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>공지사항</div>
-        <div style={{ fontSize: '13px', color: '#475569', marginBottom: '24px' }}>강사아레나의 새로운 소식을 확인하세요</div>
+        .notice-item {
+          transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+        .notice-item:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(15,23,42,0.08);
+          border-color: rgba(37,99,235,0.25) !important;
+        }
+      `}</style>
+
+      {/* 서브 히어로 */}
+      <section style={{
+        background: 'radial-gradient(ellipse 700px 320px at 50% -20%, rgba(96,165,250,0.5), transparent 60%), linear-gradient(180deg, #0B1E4D 0%, #1E3A8A 100%)',
+        padding: '48px 20px', textAlign: 'center'
+      }}>
+        <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#fff', marginBottom: '8px', letterSpacing: '-0.4px' }}>
+          📢 공지사항
+        </h1>
+        <p style={{ fontSize: '14px', color: 'rgba(226,232,255,0.8)' }}>강사아레나의 새로운 소식을 확인하세요</p>
+      </section>
+
+      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '32px 20px 60px' }}>
 
         {/* 공지 상세 모달 */}
         {selected && (
           <div style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+            position: 'fixed', inset: 0, background: 'rgba(11,30,77,0.55)',
             zIndex: 1000, display: 'flex', alignItems: 'center',
             justifyContent: 'center', padding: '20px'
           }} onClick={() => setSelected(null)}>
             <div style={{
-              background: '#fff', borderRadius: '16px',
-              padding: '28px', maxWidth: '600px', width: '100%',
-              maxHeight: '80vh', overflowY: 'auto'
+              background: '#fff', borderRadius: '18px',
+              padding: '32px', maxWidth: '600px', width: '100%',
+              maxHeight: '80vh', overflowY: 'auto',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
             }} onClick={e => e.stopPropagation()}>
-              <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+              <div style={{ fontSize: '19px', fontWeight: '800', marginBottom: '8px', color: '#0F172A' }}>
                 {selected.title}
               </div>
               <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '20px' }}>
                 {new Date(selected.created_at).toLocaleDateString('ko-KR')}
               </div>
-              <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.8', whiteSpace: 'pre-wrap' }}>
+              <div style={{ fontSize: '14px', color: '#334155', lineHeight: '1.8', whiteSpace: 'pre-wrap' }}>
                 {selected.content}
               </div>
               <button onClick={() => setSelected(null)} style={{
-                marginTop: '20px', padding: '8px 20px',
+                marginTop: '24px', padding: '9px 22px',
                 background: '#F1F5F9', border: 'none',
-                borderRadius: '8px', fontSize: '13px', cursor: 'pointer'
+                borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer'
               }}>닫기</button>
             </div>
           </div>
@@ -89,21 +88,21 @@ export default function NoticesPage() {
           <div style={{
             textAlign: 'center', padding: '60px',
             background: '#fff', borderRadius: '16px',
-            border: '0.5px solid rgba(0,0,0,0.1)',
+            border: '0.5px solid rgba(0,0,0,0.08)',
             color: '#94A3B8', fontSize: '14px'
           }}>
             등록된 공지사항이 없어요
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {notices.map(notice => (
-              <div key={notice.id} onClick={() => setSelected(notice)} style={{
-                background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)',
-                borderRadius: '12px', padding: '16px 20px',
-                cursor: 'pointer', transition: 'all 0.15s'
+              <div key={notice.id} onClick={() => setSelected(notice)} className="notice-item" style={{
+                background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)',
+                borderRadius: '14px', padding: '18px 22px',
+                cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
               }}>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#0F172A', marginBottom: '4px' }}>
-                  {notice.title}
+                <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0F172A', marginBottom: '5px' }}>
+                  📌 {notice.title}
                 </div>
                 <div style={{ fontSize: '12px', color: '#94A3B8' }}>
                   {new Date(notice.created_at).toLocaleDateString('ko-KR')} · 관리자
