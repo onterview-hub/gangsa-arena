@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 export default function FaqPage() {
@@ -28,7 +27,6 @@ export default function FaqPage() {
     setOpenId(openId === id ? null : id)
   }
 
-  // 데이터 없을 때 보여줄 기본 FAQ
   const defaultFaqs = [
     {
       id: '1',
@@ -60,69 +58,73 @@ export default function FaqPage() {
   const displayFaqs = faqs.length > 0 ? faqs : defaultFaqs
 
   return (
-    <main style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* 헤더 */}
-      <header style={{
-        background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)',
-        padding: '0 20px', height: '56px', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between',
-        position: 'sticky', top: 0, zIndex: 100
+    <main style={{ background: '#F7F8FA', minHeight: '100vh', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <style jsx global>{`
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+        .faq-item {
+          transition: box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+        .faq-item:hover {
+          box-shadow: 0 4px 14px rgba(15,23,42,0.06);
+        }
+        .faq-q:hover {
+          background: #F8FAFC;
+        }
+      `}</style>
+
+      {/* 서브 히어로 */}
+      <section style={{
+        background: 'radial-gradient(ellipse 700px 320px at 50% -20%, rgba(96,165,250,0.5), transparent 60%), linear-gradient(180deg, #0B1E4D 0%, #1E3A8A 100%)',
+        padding: '48px 20px', textAlign: 'center'
       }}>
-        <Link href="/" style={{ fontSize: '18px', fontWeight: '700', color: '#2563EB', textDecoration: 'none' }}>
-          강사아레나
-        </Link>
-        <nav style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <Link href="/instructors" style={{ padding: '6px 10px', color: '#475569', fontSize: '13px', textDecoration: 'none' }}>강사검색</Link>
-          <Link href="/notices" style={{ padding: '6px 10px', color: '#475569', fontSize: '13px', textDecoration: 'none' }}>공지사항</Link>
-          <Link href="/faq" style={{ padding: '6px 10px', color: '#2563EB', fontSize: '13px', textDecoration: 'none', fontWeight: '500' }}>FAQ</Link>
-          <Link href="/login" style={{
-            marginLeft: '8px', padding: '6px 14px',
-            background: '#2563EB', color: '#fff',
-            borderRadius: '12px', fontSize: '13px',
-            textDecoration: 'none', fontWeight: '500'
-          }}>로그인</Link>
-        </nav>
-      </header>
+        <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#fff', marginBottom: '8px', letterSpacing: '-0.4px' }}>
+          ❓ 자주 묻는 질문
+        </h1>
+        <p style={{ fontSize: '14px', color: 'rgba(226,232,255,0.8)' }}>궁금한 점을 확인해보세요</p>
+      </section>
 
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '36px 20px' }}>
-        <div style={{ fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>자주 묻는 질문</div>
-        <div style={{ fontSize: '13px', color: '#475569', marginBottom: '24px' }}>궁금한 점을 확인해보세요</div>
-
+      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '32px 20px 60px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#94A3B8' }}>로딩 중...</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {displayFaqs.map(faq => (
-              <div key={faq.id} style={{
-                background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)',
-                borderRadius: '12px', overflow: 'hidden'
+              <div key={faq.id} className="faq-item" style={{
+                background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)',
+                borderRadius: '14px', overflow: 'hidden',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
               }}>
-                <div onClick={() => toggleFaq(faq.id)} style={{
-                  padding: '16px 20px', cursor: 'pointer',
+                <div onClick={() => toggleFaq(faq.id)} className="faq-q" style={{
+                  padding: '17px 22px', cursor: 'pointer',
                   display: 'flex', alignItems: 'center',
                   justifyContent: 'space-between', gap: '12px'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ color: '#2563EB', fontSize: '16px', fontWeight: '700' }}>Q</span>
-                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#0F172A' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{
+                      color: '#fff', background: 'linear-gradient(135deg, #1E3A8A, #3B82F6)',
+                      fontSize: '13px', fontWeight: '800', width: '24px', height: '24px',
+                      borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    }}>Q</span>
+                    <span style={{ fontSize: '14.5px', fontWeight: '700', color: '#0F172A' }}>
                       {faq.question}
                     </span>
                   </div>
                   <span style={{
-                    fontSize: '18px', color: '#94A3B8',
+                    fontSize: '16px', color: '#94A3B8',
                     transform: openId === faq.id ? 'rotate(180deg)' : 'rotate(0)',
-                    transition: 'transform 0.2s'
+                    transition: 'transform 0.2s', flexShrink: 0
                   }}>
                     ∨
                   </span>
                 </div>
                 {openId === faq.id && (
                   <div style={{
-                    padding: '0 20px 16px 20px',
-                    borderTop: '0.5px solid rgba(0,0,0,0.07)'
+                    padding: '0 22px 18px',
+                    borderTop: '0.5px solid rgba(0,0,0,0.06)'
                   }}>
                     <div style={{
-                      paddingTop: '14px', fontSize: '14px',
+                      paddingTop: '14px', fontSize: '13.5px',
                       color: '#475569', lineHeight: '1.7'
                     }}>
                       {faq.answer}
