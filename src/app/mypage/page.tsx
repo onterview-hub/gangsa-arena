@@ -24,6 +24,7 @@ export default function MyPage() {
 
   const [balance, setBalance] = useState(0)
   const [receivedRequests, setReceivedRequests] = useState<any[]>([])
+  const [sentRequests, setSentRequests] = useState<any[]>([])
 
   useEffect(() => {
     fetchAll()
@@ -55,6 +56,16 @@ export default function MyPage() {
         .eq('user_id', session.user.id)
         .maybeSingle()
       setBalance(account?.balance || 0)
+
+      // 내가 보낸 의뢰(로그인 이메일 기준으로 매칭)
+      if (session.user.email) {
+        const { data: sent } = await supabase
+          .from('requests')
+          .select('*')
+          .eq('email', session.user.email)
+          .order('created_at', { ascending: false })
+        setSentRequests(sent || [])
+      }
     }
 
     if (profileData?.user_type === 'instructor') {
@@ -65,7 +76,6 @@ export default function MyPage() {
         .maybeSingle()
 
       setInstructorRow(instructorData)
-      // 강사는 instructors 테이블의 이름을 기준으로 보여줌 (강사 목록/상세페이지와 동일한 이름)
       setName(instructorData?.name || profileData?.name || '')
 
       if (instructorData) {
@@ -89,7 +99,6 @@ export default function MyPage() {
     }
     setSaving(true)
 
-    // profiles 테이블은 항상 갱신
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert({ id: user.id, email: user.email, name, user_type: profile?.user_type })
@@ -100,7 +109,6 @@ export default function MyPage() {
       return
     }
 
-    // 강사 계정이면 instructors 테이블 이름도 같이 갱신 (강사 프로필과 연동)
     if (profile?.user_type === 'instructor' && instructorRow) {
       const { error: instructorError } = await supabase
         .from('instructors')
@@ -148,6 +156,42 @@ export default function MyPage() {
       <div style={{ maxWidth: '680px', margin: '0 auto' }}>
         <div style={{ fontSize: '22px', fontWeight: '800', marginBottom: '4px', color: '#0F172A', letterSpacing: '-0.3px' }}>마이페이지</div>
         <div style={{ fontSize: '13px', color: '#64748B', marginBottom: '24px' }}>계정 정보 및 프로필 상태 관리</div>
+
+        {/* 강사 프로필 요약 카드 */}
+        {userType === 'instructor' && instructorRow && (
+          <div style={{
+            background: 'linear-gradient(135deg, #0B1E4D 0%, #1E3A8A 100%)',
+            borderRadius: '18px', padding: '26px', marginBottom: '20px',
+            boxShadow: '0 12px 30px rgba(30,58,138,0.2)'
+          }}>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{
+                width: '60px', height: '60px', borderRadius: '50%', flexShrink: 0,
+                background: instructorRow.photo_url ? `url(${instructorRow.photo_url}) center/cover` : 'rgba(255,255,255,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '22px', fontWeight: '700', color: '#fff', border: '2px solid rgba(255,255,255,0.3)'
+              }}>
+                {!instructorRow.photo_url && (instructorRow.name?.[0] || '?')}
+              </div>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: '#fff' }}>{instructorRow.name} 강사</div>
+                <div style={{ fontSize: '12.5px', color: 'rgba(226,232,255,0.8)', marginTop: '2px' }}>{instructorRow.headline || '한 줄 소개가 없어요'}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {instructorRow.category && instructorRow.category.split(',').map((c: string) => c.trim()).filter(Boolean).map((c: string) => (
+                <span key={c} style={{ fontSize: '11.5px', color: '#fff', background: 'rgba(255,255,255,0.15)', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>{c}</span>
+              ))}
+              <span style={{ fontSize: '11.5px', color: '#fff', background: 'rgba(255,255,255,0.15)', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>💰 {instructorRow.fee || '협의'}</span>
+            </div>
+            <Link href={`/instructors/${instructorRow.id}`} className="link-btn" style={{
+              display: 'inline-block', marginTop: '16px', fontSize: '12.5px', color: '#fff',
+              textDecoration: 'underline', fontWeight: 600
+            }}>
+              내 공개 프로필 보기 →
+            </Link>
+          </div>
+        )}
 
         {/* 계정 정보 + 이름 수정 */}
         <div style={{ background: '#fff', padding: '28px', borderRadius: '16px', border: '0.5px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: '20px' }}>
@@ -248,6 +292,51 @@ export default function MyPage() {
                         {req.schedule && <span>📅 {req.schedule}</span>}
                         {req.budget && <span>💰 {req.budget}</span>}
                         {req.phone && <span>📞 {req.phone}</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 기업 계정: 내가 보낸 강의 의뢰 목록 */}
+        {userType === 'company' && (
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#0F172A', marginBottom: '14px' }}>
+              📤 내가 보낸 강의 의뢰 {sentRequests.length > 0 && <span style={{ color: '#2563EB' }}>{sentRequests.length}건</span>}
+            </div>
+
+            {sentRequests.length === 0 ? (
+              <div style={{ background: '#fff', padding: '40px', borderRadius: '16px', textAlign: 'center', border: '0.5px solid rgba(0,0,0,0.08)', color: '#94A3B8', fontSize: '14px' }}>
+                <div style={{ marginBottom: '10px' }}>아직 보낸 의뢰가 없어요</div>
+                <Link href="/requests/new" className="link-btn" style={{ color: '#2563EB', fontWeight: 700, fontSize: '13px', textDecoration: 'none' }}>
+                  강의 의뢰 등록하러 가기 →
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {sentRequests.map(req => {
+                  const s = statusInfo(req.status)
+                  return (
+                    <div key={req.id} className="request-card" style={{
+                      background: '#fff', padding: '20px', borderRadius: '14px', border: '0.5px solid rgba(0,0,0,0.08)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: s.color, background: s.bg, padding: '4px 10px', borderRadius: '6px' }}>
+                          {s.label}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#94A3B8' }}>
+                          {req.created_at ? new Date(req.created_at).toLocaleDateString('ko-KR') : ''}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#0F172A', marginBottom: '6px' }}>
+                        {req.title || '(제목 없음)'}
+                      </div>
+                      <div style={{ display: 'flex', gap: '16px', fontSize: '12.5px', color: '#64748B', flexWrap: 'wrap' }}>
+                        {req.schedule && <span>📅 {req.schedule}</span>}
+                        {req.budget && <span>💰 {req.budget}</span>}
                       </div>
                     </div>
                   )
