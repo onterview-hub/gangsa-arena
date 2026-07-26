@@ -26,6 +26,17 @@ export default function MyPage() {
   const [receivedRequests, setReceivedRequests] = useState<any[]>([])
   const [sentRequests, setSentRequests] = useState<any[]>([])
 
+  // 비밀번호 변경 관련
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newPassword2, setNewPassword2] = useState('')
+  const [changingPw, setChangingPw] = useState(false)
+
+  // 회원탈퇴 관련
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
   useEffect(() => {
     fetchAll()
   }, [])
@@ -57,7 +68,6 @@ export default function MyPage() {
         .maybeSingle()
       setBalance(account?.balance || 0)
 
-      // 내가 보낸 의뢰(로그인 이메일 기준으로 매칭)
       if (session.user.email) {
         const { data: sent } = await supabase
           .from('requests')
@@ -127,6 +137,89 @@ export default function MyPage() {
     setSaving(false)
   }
 
+  const handleChangePassword = async () => {
+    if (!oldPassword || !newPassword || !newPassword2) {
+      toast.error('모든 항목을 입력해주세요')
+      return
+    }
+    if (newPassword.length < 6) {
+      toast.error('새 비밀번호는 6자 이상이어야 해요')
+      return
+    }
+    if (newPassword !== newPassword2) {
+      toast.error('새 비밀번호가 일치하지 않아요')
+      return
+    }
+
+    setChangingPw(true)
+
+    // 현재 비밀번호 확인 (재인증)
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: oldPassword,
+    })
+
+    if (reauthError) {
+      toast.error('현재 비밀번호가 올바르지 않아요')
+      setChangingPw(false)
+      return
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+
+    if (updateError) {
+      toast.error('비밀번호 변경 실패: ' + updateError.message)
+      setChangingPw(false)
+      return
+    }
+
+    toast.success('비밀번호가 변경됐어요!')
+    setOldPassword('')
+    setNewPassword('')
+    setNewPassword2('')
+    setChangingPw(false)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== '회원탈퇴') {
+      toast.error('"회원탈퇴"를 정확히 입력해주세요')
+      return
+    }
+
+    setDeleting(true)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      toast.error('세션이 만료됐어요. 다시 로그인해주세요.')
+      setDeleting(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
+      const result = await res.json()
+
+      if (!res.ok) {
+        toast.error(result.error || '탈퇴 처리 중 오류가 발생했어요')
+        setDeleting(false)
+        return
+      }
+
+      toast.success('탈퇴 처리가 완료됐어요. 이용해주셔서 감사합니다.')
+      await supabase.auth.signOut()
+      setTimeout(() => router.push('/'), 1200)
+    } catch (e: any) {
+      toast.error('탈퇴 처리 중 오류가 발생했어요: ' + e.message)
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <main style={{ background: '#F7F8FA', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -137,6 +230,7 @@ export default function MyPage() {
 
   const userType = profile?.user_type
   const statusInfo = (status: string) => STATUS_LABELS[status] || { label: status || '알 수 없음', color: '#475569', bg: '#F1F5F9' }
+  const hasEmailAuth = user?.identities?.some((i: any) => i.provider === 'email')
 
   return (
     <main style={{ background: '#F7F8FA', minHeight: '100vh', padding: '40px 20px 80px', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif" }}>
@@ -151,6 +245,8 @@ export default function MyPage() {
         .request-card:hover { box-shadow: 0 8px 20px rgba(15,23,42,0.06); }
         .link-btn { transition: opacity 0.15s ease; }
         .link-btn:hover { opacity: 0.75; }
+        .danger-btn { transition: transform 0.15s ease, filter 0.15s ease; }
+        .danger-btn:hover:not(:disabled) { filter: brightness(1.08); }
       `}</style>
 
       <div style={{ maxWidth: '680px', margin: '0 auto' }}>
@@ -232,6 +328,53 @@ export default function MyPage() {
               {instructorRow ? '에서 수정하세요.' : '에서 먼저 프로필을 등록해주세요.'}
             </p>
           )}
+        </div>
+
+        {/* 계정보안 */}
+        <div style={{ background: '#fff', padding: '28px', borderRadius: '16px', border: '0.5px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: '20px' }}>
+          <div style={{ fontSize: '16px', fontWeight: '800', color: '#0F172A', marginBottom: '18px' }}>🔒 계정보안</div>
+
+          {hasEmailAuth ? (
+            <>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '8px', color: '#334155' }}>비밀번호 변경</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+                <input type="password" className="form-input" value={oldPassword} onChange={e => setOldPassword(e.target.value)}
+                  placeholder="현재 비밀번호"
+                  style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', boxSizing: 'border-box' }} />
+                <input type="password" className="form-input" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                  placeholder="새 비밀번호 (6자 이상)"
+                  style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', boxSizing: 'border-box' }} />
+                <input type="password" className="form-input" value={newPassword2} onChange={e => setNewPassword2(e.target.value)}
+                  placeholder="새 비밀번호 확인"
+                  style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <button onClick={handleChangePassword} disabled={changingPw} className="save-btn" style={{
+                padding: '10px 20px', background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', color: '#fff',
+                border: 'none', borderRadius: '10px', fontSize: '13.5px', fontWeight: '700',
+                cursor: changingPw ? 'default' : 'pointer', opacity: changingPw ? 0.7 : 1
+              }}>
+                {changingPw ? '변경 중...' : '비밀번호 변경'}
+              </button>
+            </>
+          ) : (
+            <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '4px' }}>
+              소셜 로그인(카카오/네이버)으로 가입된 계정은 별도 비밀번호가 없어요.
+            </p>
+          )}
+
+          <hr style={{ border: 'none', borderTop: '1px solid #F1F5F9', margin: '22px 0 18px' }} />
+
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '8px', color: '#334155' }}>회원탈퇴</label>
+          <p style={{ fontSize: '12.5px', color: '#94A3B8', marginBottom: '12px' }}>
+            탈퇴 시 계정, 프로필, 강사 정보(해당 시)가 모두 삭제되며 되돌릴 수 없어요.
+          </p>
+          <button onClick={() => setShowDeleteModal(true)} className="danger-btn" style={{
+            padding: '10px 20px', background: '#FEE2E2', color: '#B91C1C',
+            border: '1px solid #FECACA', borderRadius: '10px', fontSize: '13.5px', fontWeight: '700',
+            cursor: 'pointer'
+          }}>
+            회원탈퇴 신청
+          </button>
         </div>
 
         {/* 기업 계정: 마일리지 요약 */}
@@ -346,6 +489,40 @@ export default function MyPage() {
           </div>
         )}
       </div>
+
+      {/* 회원탈퇴 확인 모달 */}
+      {showDeleteModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px'
+        }}>
+          <div style={{ background: '#fff', borderRadius: '18px', padding: '28px', maxWidth: '400px', width: '100%' }}>
+            <div style={{ fontSize: '17px', fontWeight: '800', color: '#0F172A', marginBottom: '10px' }}>정말 탈퇴하시겠어요?</div>
+            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '18px', lineHeight: 1.5 }}>
+              계정, 프로필, 강사 정보(해당 시)가 모두 삭제되며 <b>되돌릴 수 없습니다</b>.<br />
+              계속하시려면 아래에 <b>회원탈퇴</b>라고 입력해주세요.
+            </p>
+            <input type="text" className="form-input" value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)}
+              placeholder="회원탈퇴"
+              style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', boxSizing: 'border-box', marginBottom: '16px' }} />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirmText('') }} style={{
+                flex: 1, padding: '10px', background: '#F1F5F9', color: '#334155',
+                border: 'none', borderRadius: '10px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer'
+              }}>
+                취소
+              </button>
+              <button onClick={handleDeleteAccount} disabled={deleting} className="danger-btn" style={{
+                flex: 1, padding: '10px', background: '#DC2626', color: '#fff',
+                border: 'none', borderRadius: '10px', fontSize: '13.5px', fontWeight: '700',
+                cursor: deleting ? 'default' : 'pointer', opacity: deleting ? 0.7 : 1
+              }}>
+                {deleting ? '처리 중...' : '탈퇴하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
