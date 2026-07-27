@@ -16,15 +16,6 @@ export default function Header() {
 
   const checkUserStatus = async () => {
     try {
-      if (typeof window !== 'undefined') {
-        const testUserLoggedIn = localStorage.getItem('test_user_logged_in')
-        if (testUserLoggedIn === 'true') {
-          setUser({ email: 'test@example.com' })
-          setLoading(false)
-          return
-        }
-      }
-
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
     } catch (e) {
@@ -38,11 +29,7 @@ export default function Header() {
     checkUserStatus()
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (typeof window !== 'undefined' && localStorage.getItem('test_user_logged_in') === 'true') {
-        setUser({ email: 'test@example.com' })
-      } else {
-        setUser(session?.user ?? null)
-      }
+      setUser(session?.user ?? null)
       setLoading(false)
     })
 
@@ -66,9 +53,6 @@ export default function Header() {
   }, [])
 
   const handleLogout = async () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('test_user_logged_in')
-    }
     await supabase.auth.signOut()
     setUser(null)
     alert('로그아웃되었습니다.')
@@ -93,6 +77,7 @@ export default function Header() {
         <nav style={{ display: 'flex', gap: '20px', alignItems: 'center', flex: 1 }}>
           <Link href="/instructors" style={navLinkStyle}>강사 찾기</Link>
           <Link href="/requests" style={navLinkStyle}>강의 의뢰 현황</Link>
+          <Link href="/jobs" style={navLinkStyle}>구인공고</Link>
           <Link href="/notices" style={navLinkStyle}>공지사항</Link>
           <Link href="/faq" style={navLinkStyle}>FAQ</Link>
         </nav>
