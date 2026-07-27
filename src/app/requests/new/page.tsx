@@ -3,6 +3,9 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import toast, { Toaster } from 'react-hot-toast'
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 function NewRequestForm() {
   const router = useRouter()
@@ -11,6 +14,8 @@ function NewRequestForm() {
   const supabase = createClient()
 
   const [loading, setLoading] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [attachment, setAttachment] = useState<{ url: string; name: string } | null>(null)
   const [formData, setFormData] = useState({
     title: '',
     company_name: '',
@@ -20,7 +25,42 @@ function NewRequestForm() {
     schedule: '',
     budget: '',
     description: '',
+    deadline: '',
   })
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('파일 용량은 10MB 이하만 가능해요')
+      e.target.value = ''
+      return
+    }
+
+    setUploadingFile(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const path = `${Date.now()}_${safeName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('request-files')
+        .upload(path, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: publicUrlData } = supabase.storage.from('request-files').getPublicUrl(path)
+      setAttachment({ url: publicUrlData.publicUrl, name: file.name })
+      toast.success('파일이 첨부됐어요!')
+    } catch (err: any) {
+      toast.error('파일 업로드 실패: ' + err.message)
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const removeAttachment = () => setAttachment(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,6 +78,9 @@ function NewRequestForm() {
           schedule: formData.schedule,
           budget: formData.budget,
           description: formData.description,
+          deadline: formData.deadline || null,
+          attachment_url: attachment?.url || null,
+          attachment_name: attachment?.name || null,
           status: 'pending',
         })
       if (error) throw error
@@ -45,6 +88,7 @@ function NewRequestForm() {
       router.refresh()
     } catch (err: any) {
       console.error('의뢰 등록 실패:', err.message)
+      toast.error('등록 실패: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -55,6 +99,7 @@ function NewRequestForm() {
 
   return (
     <main style={{ background: '#F7F8FA', minHeight: '100vh', paddingBottom: '60px', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <Toaster position="bottom-right" />
       <style jsx global>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
@@ -73,6 +118,8 @@ function NewRequestForm() {
           transform: translateY(-2px);
           filter: brightness(1.06);
         }
+        .file-upload-btn { transition: background 0.15s ease; cursor: pointer; }
+        .file-upload-btn:hover { background: #EFF6FF !important; }
       `}</style>
 
       {/* 서브 히어로 */}
@@ -152,6 +199,17 @@ function NewRequestForm() {
             </div>
 
             <div>
+              <label style={labelStyle}>지원 마감일 (선택)</label>
+              <input type="date" className="form-input" value={formData.deadline}
+                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                min={new Date().toISOString().split('T')[0]}
+                style={inputStyle} />
+              <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '6px' }}>
+                날짜를 지정하면 마감일이 지난 후 목록에 자동으로 "마감"으로 표시돼요.
+              </p>
+            </div>
+
+            <div>
               <label style={labelStyle}>상세 의뢰 내용</label>
               <textarea required rows={5} className="form-input" value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -159,11 +217,34 @@ function NewRequestForm() {
                 style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
             </div>
 
-            <button type="submit" disabled={loading} className="submit-btn" style={{
+            <div>
+              <label style={labelStyle}>첨부파일 (이미지/문서, 선택)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <label className="file-upload-btn" style={{
+                  padding: '9px 16px', background: '#F8FAFC', border: '1px solid #E2E8F0',
+                  borderRadius: '10px', fontSize: '13px', fontWeight: '600', color: '#334155'
+                }}>
+                  {uploadingFile ? '업로드 중...' : '📎 파일 선택'}
+                  <input type="file" accept="image/*,.pdf,.doc,.docx,.hwp,.ppt,.pptx"
+                    onChange={handleFileChange} disabled={uploadingFile} style={{ display: 'none' }} />
+                </label>
+                <span style={{ fontSize: '11px', color: '#94A3B8' }}>10MB 이하</span>
+                {attachment && (
+                  <span style={{ fontSize: '12.5px', color: '#2563EB', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    📄 {attachment.name}
+                    <button type="button" onClick={removeAttachment} style={{
+                      border: 'none', background: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', fontWeight: 700
+                    }}>취소</button>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading || uploadingFile} className="submit-btn" style={{
               padding: '13px', background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', color: '#fff',
               border: 'none', borderRadius: '12px', fontSize: '14.5px',
-              fontWeight: '700', cursor: loading ? 'default' : 'pointer',
-              opacity: loading ? 0.7 : 1, marginTop: '4px'
+              fontWeight: '700', cursor: (loading || uploadingFile) ? 'default' : 'pointer',
+              opacity: (loading || uploadingFile) ? 0.7 : 1, marginTop: '4px'
             }}>
               {loading ? '등록 중...' : '📋 강의 의뢰 제출하기'}
             </button>

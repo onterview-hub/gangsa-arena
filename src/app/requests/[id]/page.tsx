@@ -9,6 +9,17 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
   pending: { label: '검토 중', color: '#B45309', bg: '#FEF3C7' },
   confirmed: { label: '확정', color: '#15803D', bg: '#DCFCE7' },
   rejected: { label: '거절됨', color: '#B91C1C', bg: '#FEE2E2' },
+  closed: { label: '마감', color: '#64748B', bg: '#F1F5F9' },
+}
+
+function getEffectiveStatus(req: any): string {
+  if (req.deadline && (req.status === 'pending' || !req.status)) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const deadlineDate = new Date(req.deadline)
+    if (deadlineDate < today) return 'closed'
+  }
+  return req.status || 'pending'
 }
 
 export default function RequestDetailPage() {
@@ -75,7 +86,9 @@ export default function RequestDetailPage() {
     )
   }
 
-  const s = STATUS_LABELS[request.status] || { label: request.status || '모집 중', color: '#2563EB', bg: '#EFF6FF' }
+  const effectiveStatus = getEffectiveStatus(request)
+  const s = STATUS_LABELS[effectiveStatus] || { label: effectiveStatus || '모집 중', color: '#2563EB', bg: '#EFF6FF' }
+  const isImage = request.attachment_url && /\.(jpg|jpeg|png|gif|webp)$/i.test(request.attachment_url)
 
   return (
     <main style={{ background: '#F7F8FA', minHeight: '100vh', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif" }}>
@@ -148,7 +161,33 @@ export default function RequestDetailPage() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', background: '#F8FAFC', padding: '18px', borderRadius: '14px', marginBottom: '24px', fontSize: '13.5px', color: '#334155' }}>
             <div>📅 <strong>희망 일정:</strong> {request.schedule || '협의'}</div>
             <div>💰 <strong>예산 범위:</strong> {request.budget || '협의'}</div>
+            {request.deadline && (
+              <div style={{ color: effectiveStatus === 'closed' ? '#EF4444' : '#334155', fontWeight: effectiveStatus === 'closed' ? 700 : 400 }}>
+                ⏰ <strong>지원 마감일:</strong> {request.deadline} {effectiveStatus === 'closed' && '(마감됨)'}
+              </div>
+            )}
           </div>
+
+          {/* 첨부파일 */}
+          {request.attachment_url && (
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#0F172A', marginBottom: '10px' }}>첨부파일</h3>
+              {isImage ? (
+                <a href={request.attachment_url} target="_blank" rel="noopener noreferrer">
+                  <img src={request.attachment_url} alt={request.attachment_name || '첨부 이미지'}
+                    style={{ maxWidth: '100%', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                </a>
+              ) : (
+                <a href={request.attachment_url} target="_blank" rel="noopener noreferrer" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px',
+                  background: '#EFF6FF', color: '#2563EB', borderRadius: '10px', textDecoration: 'none',
+                  fontSize: '13.5px', fontWeight: 700
+                }}>
+                  📄 {request.attachment_name || '첨부파일 다운로드'}
+                </a>
+              )}
+            </div>
+          )}
 
           {/* 상세 내용 */}
           <div style={{ marginBottom: '24px' }}>

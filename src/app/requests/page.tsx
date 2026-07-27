@@ -8,6 +8,18 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
   pending: { label: '검토 중', color: '#B45309', bg: '#FEF3C7' },
   confirmed: { label: '확정', color: '#15803D', bg: '#DCFCE7' },
   rejected: { label: '거절됨', color: '#B91C1C', bg: '#FEE2E2' },
+  closed: { label: '마감', color: '#64748B', bg: '#F1F5F9' },
+}
+
+// 마감일이 지났으면 상태를 '마감'으로 화면에서만 덮어씀 (DB는 그대로 둠)
+function getEffectiveStatus(req: any): string {
+  if (req.deadline && (req.status === 'pending' || !req.status)) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const deadlineDate = new Date(req.deadline)
+    if (deadlineDate < today) return 'closed'
+  }
+  return req.status || 'pending'
 }
 
 export default function RequestsPage() {
@@ -30,8 +42,6 @@ export default function RequestsPage() {
         }
 
         const list = data || []
-
-        // 지정 강사가 있는 의뢰들의 강사 정보를 한 번에 가져오기
         const instructorIds = Array.from(new Set(list.map(r => r.instructor_id).filter(Boolean)))
         let instructorMap: Record<string, any> = {}
 
@@ -130,11 +140,14 @@ export default function RequestsPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {requests.map((req) => {
-              const s = statusInfo(req.status)
+              const effectiveStatus = getEffectiveStatus(req)
+              const s = statusInfo(effectiveStatus)
+              const isClosed = effectiveStatus === 'closed'
               return (
                 <Link href={`/requests/${req.id}`} key={req.id} className="req-card" style={{
                   background: '#fff', padding: '22px', borderRadius: '16px',
-                  border: '0.5px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                  border: '0.5px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                  opacity: isClosed ? 0.65 : 1
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -148,6 +161,11 @@ export default function RequestsPage() {
                       ) : (
                         <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', background: '#F1F5F9', padding: '4px 10px', borderRadius: '6px' }}>
                           전체 공개 의뢰
+                        </span>
+                      )}
+                      {req.attachment_url && (
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#0F766E', background: '#ECFDF5', padding: '4px 10px', borderRadius: '6px' }}>
+                          📎 첨부 있음
                         </span>
                       )}
                     </div>
@@ -168,6 +186,11 @@ export default function RequestsPage() {
                     {req.schedule && <span>📅 {req.schedule}</span>}
                     {req.budget && <span>💰 {req.budget}</span>}
                     {req.phone && <span>📞 {req.phone}</span>}
+                    {req.deadline && (
+                      <span style={{ color: isClosed ? '#EF4444' : '#334155', fontWeight: isClosed ? 700 : 400 }}>
+                        ⏰ {isClosed ? '마감됨' : `${req.deadline} 마감`}
+                      </span>
+                    )}
                   </div>
 
                   {req.description && (
