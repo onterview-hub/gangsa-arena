@@ -25,9 +25,34 @@ export default function RequestsPage() {
 
         if (error) {
           console.error('전체 의뢰 목록 조회 오류:', error)
-        } else if (data) {
-          setRequests(data)
+          setLoading(false)
+          return
         }
+
+        const list = data || []
+
+        // 지정 강사가 있는 의뢰들의 강사 정보를 한 번에 가져오기
+        const instructorIds = Array.from(new Set(list.map(r => r.instructor_id).filter(Boolean)))
+        let instructorMap: Record<string, any> = {}
+
+        if (instructorIds.length > 0) {
+          const { data: instructorsData } = await supabase
+            .from('instructors')
+            .select('id, name, photo_url')
+            .in('id', instructorIds)
+
+          instructorMap = (instructorsData || []).reduce((acc: any, inst: any) => {
+            acc[inst.id] = inst
+            return acc
+          }, {})
+        }
+
+        const merged = list.map(r => ({
+          ...r,
+          instructor: r.instructor_id ? instructorMap[r.instructor_id] : null,
+        }))
+
+        setRequests(merged)
       } catch (err) {
         console.error('데이터 통신 오류:', err)
       } finally {
@@ -47,6 +72,9 @@ export default function RequestsPage() {
 
         .req-card {
           transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+          display: block;
+          text-decoration: none;
+          color: inherit;
         }
         .req-card:hover {
           transform: translateY(-3px);
@@ -104,14 +132,25 @@ export default function RequestsPage() {
             {requests.map((req) => {
               const s = statusInfo(req.status)
               return (
-                <div key={req.id} className="req-card" style={{
+                <Link href={`/requests/${req.id}`} key={req.id} className="req-card" style={{
                   background: '#fff', padding: '22px', borderRadius: '16px',
                   border: '0.5px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: s.color, background: s.bg, padding: '4px 10px', borderRadius: '6px' }}>
-                      {s.label}
-                    </span>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: s.color, background: s.bg, padding: '4px 10px', borderRadius: '6px' }}>
+                        {s.label}
+                      </span>
+                      {req.instructor ? (
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#1E3A8A', background: '#EFF6FF', padding: '4px 10px', borderRadius: '6px' }}>
+                          🎯 {req.instructor.name} 강사 지정
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', background: '#F1F5F9', padding: '4px 10px', borderRadius: '6px' }}>
+                          전체 공개 의뢰
+                        </span>
+                      )}
+                    </div>
                     <span style={{ fontSize: '12px', color: '#94A3B8' }}>
                       {req.created_at ? new Date(req.created_at).toLocaleDateString('ko-KR') : ''}
                     </span>
@@ -128,6 +167,7 @@ export default function RequestsPage() {
                   <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap', fontSize: '13px', color: '#334155', background: '#F8FAFC', padding: '12px 16px', borderRadius: '10px' }}>
                     {req.schedule && <span>📅 {req.schedule}</span>}
                     {req.budget && <span>💰 {req.budget}</span>}
+                    {req.phone && <span>📞 {req.phone}</span>}
                   </div>
 
                   {req.description && (
@@ -139,7 +179,11 @@ export default function RequestsPage() {
                       {req.description}
                     </p>
                   )}
-                </div>
+
+                  <div style={{ marginTop: '14px', fontSize: '12.5px', color: '#2563EB', fontWeight: 700 }}>
+                    자세히 보기 →
+                  </div>
+                </Link>
               )
             })}
           </div>
