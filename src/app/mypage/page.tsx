@@ -25,6 +25,7 @@ export default function MyPage() {
   const [balance, setBalance] = useState(0)
   const [receivedRequests, setReceivedRequests] = useState<any[]>([])
   const [sentRequests, setSentRequests] = useState<any[]>([])
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   // 비밀번호 변경 관련
   const [oldPassword, setOldPassword] = useState('')
@@ -137,6 +138,24 @@ export default function MyPage() {
     setSaving(false)
   }
 
+  const handleUpdateRequestStatus = async (reqId: string, newStatus: 'confirmed' | 'rejected') => {
+    setUpdatingId(reqId)
+    const { error } = await supabase
+      .from('requests')
+      .update({ status: newStatus })
+      .eq('id', reqId)
+
+    if (error) {
+      toast.error('상태 변경 실패: ' + error.message)
+      setUpdatingId(null)
+      return
+    }
+
+    setReceivedRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: newStatus } : r))
+    toast.success(newStatus === 'confirmed' ? '의뢰를 확정했어요!' : '의뢰를 거절했어요')
+    setUpdatingId(null)
+  }
+
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !newPassword2) {
       toast.error('모든 항목을 입력해주세요')
@@ -153,7 +172,6 @@ export default function MyPage() {
 
     setChangingPw(true)
 
-    // 현재 비밀번호 확인 (재인증)
     const { error: reauthError } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: oldPassword,
@@ -247,6 +265,10 @@ export default function MyPage() {
         .link-btn:hover { opacity: 0.75; }
         .danger-btn { transition: transform 0.15s ease, filter 0.15s ease; }
         .danger-btn:hover:not(:disabled) { filter: brightness(1.08); }
+        .confirm-btn { transition: transform 0.15s ease, filter 0.15s ease; }
+        .confirm-btn:hover:not(:disabled) { filter: brightness(1.08); }
+        .reject-btn { transition: background 0.15s ease; }
+        .reject-btn:hover:not(:disabled) { background: #FEE2E2 !important; }
       `}</style>
 
       <div style={{ maxWidth: '680px', margin: '0 auto' }}>
@@ -413,6 +435,7 @@ export default function MyPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {receivedRequests.map(req => {
                   const s = statusInfo(req.status)
+                  const isPending = !req.status || req.status === 'pending'
                   return (
                     <div key={req.id} className="request-card" style={{
                       background: '#fff', padding: '20px', borderRadius: '14px', border: '0.5px solid rgba(0,0,0,0.08)'
@@ -425,17 +448,46 @@ export default function MyPage() {
                           {req.created_at ? new Date(req.created_at).toLocaleDateString('ko-KR') : ''}
                         </span>
                       </div>
-                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#0F172A', marginBottom: '6px' }}>
-                        {req.title || '(제목 없음)'}
-                      </div>
+                      <Link href={`/requests/${req.id}`} style={{ textDecoration: 'none' }}>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#0F172A', marginBottom: '6px' }}>
+                          {req.title || '(제목 없음)'}
+                        </div>
+                      </Link>
                       <div style={{ fontSize: '13px', color: '#475569', marginBottom: '8px' }}>
                         🏢 {req.company_name} · 담당자 {req.contact_person}
                       </div>
-                      <div style={{ display: 'flex', gap: '16px', fontSize: '12.5px', color: '#64748B', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: '16px', fontSize: '12.5px', color: '#64748B', flexWrap: 'wrap', marginBottom: isPending ? '14px' : 0 }}>
                         {req.schedule && <span>📅 {req.schedule}</span>}
                         {req.budget && <span>💰 {req.budget}</span>}
                         {req.phone && <span>📞 {req.phone}</span>}
                       </div>
+
+                      {isPending && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => handleUpdateRequestStatus(req.id, 'confirmed')}
+                            disabled={updatingId === req.id}
+                            className="confirm-btn"
+                            style={{
+                              flex: 1, padding: '9px', background: 'linear-gradient(135deg, #16A34A, #15803D)', color: '#fff',
+                              border: 'none', borderRadius: '9px', fontSize: '13px', fontWeight: '700',
+                              cursor: updatingId === req.id ? 'default' : 'pointer', opacity: updatingId === req.id ? 0.6 : 1
+                            }}>
+                            ✅ 확정하기
+                          </button>
+                          <button
+                            onClick={() => handleUpdateRequestStatus(req.id, 'rejected')}
+                            disabled={updatingId === req.id}
+                            className="reject-btn"
+                            style={{
+                              flex: 1, padding: '9px', background: '#F8FAFC', color: '#B91C1C',
+                              border: '1px solid #FECACA', borderRadius: '9px', fontSize: '13px', fontWeight: '700',
+                              cursor: updatingId === req.id ? 'default' : 'pointer', opacity: updatingId === req.id ? 0.6 : 1
+                            }}>
+                            ❌ 거절하기
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -463,8 +515,8 @@ export default function MyPage() {
                 {sentRequests.map(req => {
                   const s = statusInfo(req.status)
                   return (
-                    <div key={req.id} className="request-card" style={{
-                      background: '#fff', padding: '20px', borderRadius: '14px', border: '0.5px solid rgba(0,0,0,0.08)'
+                    <Link href={`/requests/${req.id}`} key={req.id} className="request-card" style={{
+                      display: 'block', background: '#fff', padding: '20px', borderRadius: '14px', border: '0.5px solid rgba(0,0,0,0.08)', textDecoration: 'none'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                         <span style={{ fontSize: '11px', fontWeight: '700', color: s.color, background: s.bg, padding: '4px 10px', borderRadius: '6px' }}>
@@ -481,7 +533,7 @@ export default function MyPage() {
                         {req.schedule && <span>📅 {req.schedule}</span>}
                         {req.budget && <span>💰 {req.budget}</span>}
                       </div>
-                    </div>
+                    </Link>
                   )
                 })}
               </div>

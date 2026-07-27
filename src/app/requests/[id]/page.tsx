@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import toast, { Toaster } from 'react-hot-toast'
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: '검토 중', color: '#B45309', bg: '#FEF3C7' },
@@ -29,43 +30,73 @@ export default function RequestDetailPage() {
   const [request, setRequest] = useState<any>(null)
   const [instructor, setInstructor] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [myInstructorId, setMyInstructorId] = useState<string | null>(null)
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     if (!id) return
+    fetchRequest()
+  }, [id])
 
-    const fetchRequest = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('requests')
-          .select('*')
-          .eq('id', id)
-          .single()
+  const fetchRequest = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('id', id)
+        .single()
 
-        if (error) {
-          console.error('강의 의뢰 상세 조회 오류:', error)
-          setLoading(false)
-          return
-        }
-
-        setRequest(data)
-
-        if (data?.instructor_id) {
-          const { data: instData } = await supabase
-            .from('instructors')
-            .select('id, name, photo_url, headline, category, fee')
-            .eq('id', data.instructor_id)
-            .maybeSingle()
-          setInstructor(instData)
-        }
-      } catch (err) {
-        console.error('통신 오류:', err)
-      } finally {
+      if (error) {
+        console.error('강의 의뢰 상세 조회 오류:', error)
         setLoading(false)
+        return
       }
+
+      setRequest(data)
+
+      if (data?.instructor_id) {
+        const { data: instData } = await supabase
+          .from('instructors')
+          .select('id, name, photo_url, headline, category, fee')
+          .eq('id', data.instructor_id)
+          .maybeSingle()
+        setInstructor(instData)
+      }
+
+      // 지금 로그인한 사람이 강사라면, 이 의뢰의 지정 강사 본인인지 확인
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.email) {
+        const { data: myInstructor } = await supabase
+          .from('instructors')
+          .select('id')
+          .eq('email', session.user.email)
+          .maybeSingle()
+        if (myInstructor) setMyInstructorId(myInstructor.id)
+      }
+    } catch (err) {
+      console.error('통신 오류:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdateStatus = async (newStatus: 'confirmed' | 'rejected') => {
+    setUpdating(true)
+    const { error } = await supabase
+      .from('requests')
+      .update({ status: newStatus })
+      .eq('id', id)
+
+    if (error) {
+      toast.error('상태 변경 실패: ' + error.message)
+      setUpdating(false)
+      return
     }
 
-    fetchRequest()
-  }, [id, supabase])
+    setRequest((prev: any) => ({ ...prev, status: newStatus }))
+    toast.success(newStatus === 'confirmed' ? '의뢰를 확정했어요!' : '의뢰를 거절했어요')
+    setUpdating(false)
+  }
 
   if (loading) {
     return (
@@ -89,13 +120,20 @@ export default function RequestDetailPage() {
   const effectiveStatus = getEffectiveStatus(request)
   const s = STATUS_LABELS[effectiveStatus] || { label: effectiveStatus || '모집 중', color: '#2563EB', bg: '#EFF6FF' }
   const isImage = request.attachment_url && /\.(jpg|jpeg|png|gif|webp)$/i.test(request.attachment_url)
+  const isPending = effectiveStatus === 'pending'
+  const isMyRequest = myInstructorId && request.instructor_id === myInstructorId
 
   return (
     <main style={{ background: '#F7F8FA', minHeight: '100vh', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <Toaster position="bottom-right" />
       <style jsx global>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
         .link-btn { transition: opacity 0.15s ease; }
         .link-btn:hover { opacity: 0.75; }
+        .confirm-btn { transition: transform 0.15s ease, filter 0.15s ease; }
+        .confirm-btn:hover:not(:disabled) { filter: brightness(1.08); }
+        .reject-btn { transition: background 0.15s ease; }
+        .reject-btn:hover:not(:disabled) { background: #FEE2E2 !important; }
       `}</style>
 
       {/* 서브 히어로 */}
@@ -130,6 +168,39 @@ export default function RequestDetailPage() {
           <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', marginBottom: '20px', lineHeight: 1.4 }}>
             {request.title || '(제목 없음)'}
           </h1>
+
+          {/* 강사 본인에게 지정된 의뢰일 때: 확정/거절 액션 */}
+          {isMyRequest && isPending && (
+            <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '14px', padding: '18px', marginBottom: '24px' }}>
+              <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#1E3A8A', marginBottom: '12px' }}>
+                🎯 나에게 지정된 의뢰예요. 확정 또는 거절해주세요.
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => handleUpdateStatus('confirmed')}
+                  disabled={updating}
+                  className="confirm-btn"
+                  style={{
+                    flex: 1, padding: '11px', background: 'linear-gradient(135deg, #16A34A, #15803D)', color: '#fff',
+                    border: 'none', borderRadius: '10px', fontSize: '13.5px', fontWeight: '700',
+                    cursor: updating ? 'default' : 'pointer', opacity: updating ? 0.6 : 1
+                  }}>
+                  ✅ 확정하기
+                </button>
+                <button
+                  onClick={() => handleUpdateStatus('rejected')}
+                  disabled={updating}
+                  className="reject-btn"
+                  style={{
+                    flex: 1, padding: '11px', background: '#fff', color: '#B91C1C',
+                    border: '1px solid #FECACA', borderRadius: '10px', fontSize: '13.5px', fontWeight: '700',
+                    cursor: updating ? 'default' : 'pointer', opacity: updating ? 0.6 : 1
+                  }}>
+                  ❌ 거절하기
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* 지정 강사 카드 */}
           {instructor ? (
