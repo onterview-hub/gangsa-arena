@@ -9,12 +9,10 @@ import Link from 'next/link'
 const SPECIALTIES = ['AI', '취업', '면접', '챗GPT', '리더십', '진로', '마케팅', '안전·보건']
 const FEE_OPTIONS = [
   { value: '', label: '선택 안 함' },
-  { value: '협의', label: '협의' },
-  { value: '5만원 이상', label: '시간당 5만원 이상' },
-  { value: '10만원 이상', label: '시간당 10만원 이상' },
-  { value: '15만원 이상', label: '시간당 15만원 이상' },
-  { value: '20만원 이상', label: '시간당 20만원 이상' },
-  { value: '50만원 이상', label: '시간당 50만원 이상' },
+  { value: '협의 가능', label: '💰 협의 가능' },
+  { value: '30-50만원', label: '💵 30-50만원' },
+  { value: '50-100만원', label: '💵 50-100만원' },
+  { value: '100만원 이상', label: '💎 100만원 이상' },
 ]
 
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024 // 5MB
