@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import toast, { Toaster } from 'react-hot-toast'
 
 const SPECIALTIES = ['AI', '취업', '면접', '챗GPT', '리더십', '진로', '마케팅', '안전·보건']
 const FEE_OPTIONS = [
@@ -19,10 +20,26 @@ export default function InstructorsPage() {
   const [selectedSpec, setSelectedSpec] = useState('')
   const [selectedFee, setSelectedFee] = useState('')
   const [search, setSearch] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchInstructors()
+    loadUserAndFavorites()
   }, [selectedSpec, selectedFee])
+
+  const loadUserAndFavorites = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    setUserId(session.user.id)
+
+    const { data } = await supabase
+      .from('instructor_favorites')
+      .select('instructor_id')
+      .eq('user_id', session.user.id)
+
+    setFavoriteIds(new Set((data || []).map(f => f.instructor_id)))
+  }
 
   const fetchInstructors = async () => {
     setLoading(true)
@@ -39,12 +56,45 @@ export default function InstructorsPage() {
     setLoading(false)
   }
 
+  const toggleFavorite = async (e: React.MouseEvent, instructorId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!userId) {
+      toast.error('로그인 후 즐겨찾기를 이용할 수 있어요')
+      return
+    }
+
+    const isFav = favoriteIds.has(instructorId)
+
+    if (isFav) {
+      const { error } = await supabase
+        .from('instructor_favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('instructor_id', instructorId)
+      if (!error) {
+        setFavoriteIds(prev => { const next = new Set(prev); next.delete(instructorId); return next })
+        toast.success('즐겨찾기에서 삭제했어요')
+      }
+    } else {
+      const { error } = await supabase
+        .from('instructor_favorites')
+        .insert({ user_id: userId, instructor_id: instructorId })
+      if (!error) {
+        setFavoriteIds(prev => new Set(prev).add(instructorId))
+        toast.success('즐겨찾기에 추가했어요!')
+      }
+    }
+  }
+
   const filtered = instructors.filter(ins =>
     search ? ins.name?.includes(search) || ins.category?.includes(search) || ins.headline?.includes(search) : true
   )
 
   return (
     <main style={{ background: '#F7F8FA', minHeight: '100vh', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <Toaster position="bottom-right" />
       <style jsx global>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
@@ -63,6 +113,7 @@ export default function InstructorsPage() {
         }
         .instructor-card {
           transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+          position: relative;
         }
         .instructor-card:hover {
           transform: translateY(-4px);
@@ -76,9 +127,15 @@ export default function InstructorsPage() {
           transform: translateY(-1px);
           filter: brightness(1.05);
         }
+        .fav-heart-btn {
+          transition: transform 0.15s ease;
+        }
+        .fav-heart-btn:hover {
+          transform: scale(1.15);
+        }
       `}</style>
 
-      {/* 서브 히어로 — 메인과 톤을 맞춘 네이비 그라데이션 */}
+      {/* 서브 히어로 */}
       <section style={{
         background: 'radial-gradient(ellipse 700px 320px at 50% -20%, rgba(96,165,250,0.5), transparent 60%), linear-gradient(180deg, #0B1E4D 0%, #1E3A8A 100%)',
         padding: '48px 20px', textAlign: 'center'
@@ -163,6 +220,9 @@ export default function InstructorsPage() {
               총 <strong style={{ color: '#2563EB' }}>{filtered.length}명</strong>의 강사
               {selectedSpec && <span style={{ marginLeft: '8px', background: '#EFF6FF', color: '#2563EB', padding: '2px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>#{selectedSpec}</span>}
             </div>
+            <Link href="/favorites" style={{ fontSize: '13px', color: '#2563EB', fontWeight: 700, textDecoration: 'none' }}>
+              ♥ 즐겨찾기 보기
+            </Link>
           </div>
 
           {loading ? (
@@ -191,6 +251,20 @@ export default function InstructorsPage() {
                     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                     cursor: 'pointer', height: '100%', boxSizing: 'border-box'
                   }}>
+                    <button
+                      onClick={(e) => toggleFavorite(e, ins.id)}
+                      className="fav-heart-btn"
+                      style={{
+                        position: 'absolute', top: '14px', right: '14px',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: '19px', lineHeight: 1, padding: 0,
+                        color: favoriteIds.has(ins.id) ? '#EF4444' : '#CBD5E1'
+                      }}
+                      aria-label="즐겨찾기"
+                    >
+                      {favoriteIds.has(ins.id) ? '♥' : '♡'}
+                    </button>
+
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                       <div style={{
                         width: '48px', height: '48px', borderRadius: '50%', flexShrink: 0,
