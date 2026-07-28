@@ -10,11 +10,24 @@ export default function NaverLoginCompletePage() {
 
   useEffect(() => {
     const finishLogin = async () => {
-      // 브라우저 URL의 #access_token 부분을 Supabase 클라이언트가 자동으로 읽어서
-      // 세션을 만들어줄 때까지 잠깐 기다려요
-      const { data: { session } } = await supabase.auth.getSession()
+      // 주소창의 # 뒤에 붙어있는 로그인 정보를 직접 꺼내요
+      const hash = window.location.hash.substring(1) // 맨 앞 '#' 제거
+      const params = new URLSearchParams(hash)
+      const access_token = params.get('access_token')
+      const refresh_token = params.get('refresh_token')
 
-      if (!session) {
+      if (!access_token || !refresh_token) {
+        router.push('/login?error=naver_no_token')
+        return
+      }
+
+      // 꺼낸 정보로 직접 로그인 세션을 만들어요
+      const { data, error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      })
+
+      if (error || !data.session) {
         router.push('/login?error=naver_session_failed')
         return
       }
@@ -22,7 +35,7 @@ export default function NaverLoginCompletePage() {
       const { data: profile } = await supabase
         .from('profiles')
         .select('user_type')
-        .eq('id', session.user.id)
+        .eq('id', data.session.user.id)
         .maybeSingle()
 
       if (!profile?.user_type) {
